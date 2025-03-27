@@ -2,6 +2,23 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../models/Message");
 
+//Basic auth middleware
+const basicAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send("Authentication required");
+  }
+
+  const base64Credentials = authHeader.split(" ")[1];
+  credentials = Buffer.from(base64Credentials, "base64").toString("ascii");
+  const [username, password] = credentials.split(":");
+
+  if (username === "admin" && password === process.env.SECRET_KEY) {
+    return next();
+  }
+  res.status(401).send("Invalid Credentials");
+};
+
 //GET all messages
 router.get("/", async (req, res) => {
   try {
@@ -13,7 +30,7 @@ router.get("/", async (req, res) => {
 });
 
 //GET single message
-router.get("/:id", async (req, res) => {
+router.get("/:id", basicAuth, async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
     if (!message) {
@@ -26,7 +43,7 @@ router.get("/:id", async (req, res) => {
 });
 
 //POST a new message
-router.post("/", async (req, res) => {
+router.post("/", basicAuth, async (req, res) => {
   try {
     if (!req.body.text) {
       return res.status(404).send("text required");
@@ -43,7 +60,7 @@ router.post("/", async (req, res) => {
 });
 
 //PUT update a message
-router.put("/:id", async (req, res) => {
+router.put("/:id", basicAuth, async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(
       req.params.id,
@@ -61,7 +78,7 @@ router.put("/:id", async (req, res) => {
 });
 
 //DELETE a message
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", basicAuth, async (req, res) => {
   try {
     const message = await Message.findByIdAndDelete(req.params.id);
     if (!message) {

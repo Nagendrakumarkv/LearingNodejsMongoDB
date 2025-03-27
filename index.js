@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const messageRoutes = require("./routes/messageRoutes");
@@ -8,7 +9,7 @@ app.use(express.json());
 
 //Connect to MongoDB
 mongoose
-  .connect("mongodb://localhost:27017/myapp", {
+  .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -20,7 +21,7 @@ app.use("/messages", messageRoutes);
 
 //Root route
 app.get("/", (req, res) => {
-  res.send("welcome to day 4 nodejs and mongoDb learning");
+  res.send("welcome to day 5 nodejs and mongoDb learning");
 });
 
 //Invalid routes
@@ -28,6 +29,7 @@ app.use((req, res) => {
   res.status(404).send("Route not found");
 });
 
-app.listen(3000, () => {
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
   console.log("Server is runnig on http://localhost:3000");
 });
