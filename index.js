@@ -26,10 +26,7 @@ const authMiddleware = (req, res, next) => {
 
 //Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error", err));
 
@@ -45,6 +42,12 @@ app.get("/", (req, res) => {
 //Invalid routes
 app.use((req, res) => {
   res.status(404).send("Route not found");
+});
+
+//Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error("Server error", err.stack);
+  res.status(500).send("Something went wrog!");
 });
 
 const port = process.env.PORT || 3000;
