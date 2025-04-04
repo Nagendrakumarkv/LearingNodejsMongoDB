@@ -4,10 +4,15 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
+const logRequest = require("./middleware/logRequest");
+const rateLimit = require("./middleware/rateLimit");
+const restrictWeekends = require("./middleware/restrictWeekends");
 
 const app = express();
 
 app.use(express.json());
+app.use(logRequest); // Add logging middleware globally
+app.use(rateLimit); // Add rate limiting globally
 
 //JWT Middleware
 const authMiddleware = (req, res, next) => {
@@ -32,7 +37,7 @@ mongoose
 
 //Use routes
 app.use("/users", userRoutes);
-app.use("/messages", authMiddleware, messageRoutes);
+app.use("/messages", authMiddleware, restrictWeekends, messageRoutes);
 
 //Root route
 app.get("/", (req, res) => {
