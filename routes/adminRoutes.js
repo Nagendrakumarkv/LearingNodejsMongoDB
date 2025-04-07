@@ -2,11 +2,13 @@ require("dotenv").config();
 const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
+const logger = require("../logger"); // Import logger
 
 // Get all users (admin only)
 router.get("/users", async (req, res) => {
   try {
     const users = await User.find({}, { password: 0 }); // Exclude password field
+    logger.info(`All Users fetced ${this.users}`);
     res.json(users);
   } catch (error) {
     res.status(500).send("Error fetching users");

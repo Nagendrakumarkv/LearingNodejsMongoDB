@@ -7,6 +7,8 @@ const userRoutes = require("./routes/userRoutes");
 const logRequest = require("./middleware/logRequest");
 const rateLimit = require("./middleware/rateLimit");
 const restrictWeekends = require("./middleware/restrictWeekends");
+const logger = require("./logger");
+const { NotFoundError, UnauthorizedError } = require("./errors/customErrors");
 
 const app = express();
 
@@ -25,15 +27,15 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded; // Attach user info to request
     next();
   } catch (error) {
-    res.status(401).send("Invalid token");
+    next(new UnauthorizedError("Invalid token"));
   }
 };
 
 //Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error", err));
+  .then(() => logger.info("Connected to MongoDB Atlas"))
+  .catch((err) => logger.error(`MongoDB connection error: ${err.message}`));
 
 //Use routes
 app.use("/users", userRoutes);
@@ -46,16 +48,18 @@ app.get("/", (req, res) => {
 
 //Invalid routes
 app.use((req, res) => {
-  res.status(404).send("Route not found");
+  next(new NotFoundError("Route not found"));
 });
 
 //Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error("Server error", err.stack);
-  res.status(500).send("Something went wrog!");
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Something went wrong!";
+  logger.error(`${err.name}: ${message} - ${req.method} ${req.path}`);
+  res.status(statusCode).json({ error: { name: err.name, message } });
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log("Server is runnig on http://localhost:3000");
+  logger.info(`Server is running on http://localhost:${port}`);
 });

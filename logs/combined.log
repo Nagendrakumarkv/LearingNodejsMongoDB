@@ -1,0 +1,30 @@
+2025-04-07 08:36:00 [INFO] Connected to MongoDB Atlas
+2025-04-07 08:38:16 [ERROR] ReferenceError: next is not defined - POST /users/logi
+2025-04-07 08:46:36 [ERROR] ReferenceError: next is not defined - POST /invalid-route
+2025-04-07 08:48:37 [INFO] Server is running on http://localhost:3000
+2025-04-07 08:48:39 [INFO] Connected to MongoDB Atlas
+2025-04-07 08:48:57 [ERROR] ReferenceError: next is not defined - POST /invalid-route
+2025-04-07 08:49:17 [ERROR] ReferenceError: next is not defined - GET /invalid-route
+2025-04-07 08:54:33 [INFO] Server is running on http://localhost:3000
+2025-04-07 08:54:34 [INFO] Connected to MongoDB Atlas
+2025-04-07 08:55:05 [ERROR] ReferenceError: next is not defined - GET /invalid-route
+2025-04-07 08:56:35 [ERROR] ValidationError: Validation failed: Text is required - POST /messages
+2025-04-07 09:03:34 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:03:35 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:04:33 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:04:34 [ERROR] MongoDB connection error: bad auth : authentication failed
+2025-04-07 09:05:10 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:05:11 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:06:41 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:06:42 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:06:51 [INFO] Message created by user 67edf70eb1aa168b858bb5da: "Hello kalla"
+2025-04-07 09:14:04 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:14:06 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:15:25 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:15:27 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:15:30 [ERROR] ReferenceError: next is not defined - GET /invalid-route
+2025-04-07 09:16:10 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:16:12 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:18:05 [INFO] Server is running on http://localhost:3000
+2025-04-07 09:18:07 [INFO] Connected to MongoDB Atlas
+2025-04-07 09:18:09 [ERROR] ReferenceError: next is not defined - GET /invalid-route

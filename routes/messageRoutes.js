@@ -2,28 +2,45 @@ const express = require("express");
 const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const Message = require("../models/Message");
+const {
+  NotFoundError,
+  ValidationError,
+  DatabaseError,
+} = require("../errors/customErrors");
+const logger = require("../logger"); // Import logger
 
 //POST a new message
 router.post(
   "/",
   [body("text").notEmpty().withMessage("Text is required")],
-  async (req, res) => {
+  async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return next(
+        new ValidationError(
+          "Validation failed: " +
+            errors
+              .array()
+              .map((e) => e.msg)
+              .join(", ")
+        )
+      );
     }
     try {
       const message = new Message({ text: req.body.text, user: req.user.id }); // From JWT
-      await message.save();
+      await message.save().catch((err) => {
+        throw new DatabaseError(`Failed to save message: ${err.message}`);
+      });
+      logger.info(`Message created by user ${req.user.id}: "${req.body.text}"`);
       res.status(201).send(message);
     } catch (error) {
-      res.status(500).send("Error saving messages");
+      next(error);
     }
   }
 );
 
 // New Stats Route
-router.get("/stats", async (req, res) => {
+router.get("/stats", async (req, res, next) => {
   try {
     const stats = await Message.aggregate([
       // Filter messages from last 24 hours
@@ -64,16 +81,18 @@ router.get("/stats", async (req, res) => {
       // { $sort: { messageCount: -1 } },
       // // Limit to top 1 (most active user)
       // { $limit: 1 },
-    ]);
+    ]).catch((err) => {
+      throw new DatabaseError(`Failed to fetch stats: ${err.message}`);
+    });
+    if (!stats.length) throw new NotFoundError("No stats available");
     res.send(stats);
   } catch (error) {
-    console.error("Stats error:", error);
-    res.status(500).send("Error fetching stats");
+    next(error);
   }
 });
 
 //Get total message count
-router.get("/total-messages", async (req, res) => {
+router.get("/total-messages", async (req, res, next) => {
   try {
     const total = await Message.aggregate([
       // Count all documents
@@ -93,23 +112,22 @@ router.get("/total-messages", async (req, res) => {
     ]);
     res.send(total[0] || { totalMessages: 0 }); // Handle empty case
   } catch (error) {
-    console.error("Total messages error:", error);
-    res.status(500).send("Error fetching total");
+    next(error);
   }
 });
 
 //GET all messages
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const messages = await Message.find();
     res.status(200).send(messages);
   } catch (error) {
-    res.status(500).send("Error while fetching messages");
+    next(error);
   }
 });
 
 //GET single message
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const message = await Message.findById(req.params.id);
     if (!message) {
@@ -117,7 +135,7 @@ router.get("/:id", async (req, res) => {
     }
     res.status(200).send(message);
   } catch (error) {
-    res.status(500).send("Error while fetching message");
+    next(error);
   }
 });
 
@@ -125,10 +143,18 @@ router.get("/:id", async (req, res) => {
 router.put(
   "/:id",
   [body("text").notEmpty().withMessage("Text is required")],
-  async (req, res) => {
+  async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return next(
+        new ValidationError(
+          "Validation failed: " +
+            errors
+              .array()
+              .map((e) => e.msg)
+              .join(", ")
+        )
+      );
     }
     try {
       const message = await Message.findByIdAndUpdate(
@@ -142,13 +168,13 @@ router.put(
       }
       res.send(message);
     } catch (error) {
-      res.status(500).send("Error updating message");
+      next(error);
     }
   }
 );
 
 //DELETE a message
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const message = await Message.findByIdAndDelete(req.params.id);
     if (!message) {
@@ -156,7 +182,7 @@ router.delete("/:id", async (req, res) => {
     }
     res.send("Message Deleted");
   } catch (error) {
-    res.status(500).send("Error deletinng message");
+    next(error);
   }
 });
 
