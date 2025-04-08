@@ -23,7 +23,7 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).send("Authentication required");
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded; // Attach user info to request
     next();
   } catch (error) {
