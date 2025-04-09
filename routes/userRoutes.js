@@ -9,6 +9,7 @@ const {
   ValidationError,
   UnauthorizedError,
 } = require("../errors/customErrors");
+const logger = require("../logger"); // Import logger
 
 //Register a new user
 router.post(
@@ -97,6 +98,21 @@ router.post("/refresh", async (req, res, next) => {
       expiresIn: "15m",
     });
     res.send({ accessToken });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/logout", async (req, res, next) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return next(new ValidationError("Refresh token required"));
+  try {
+    const user = await User.findOne({ refreshToken });
+    if (!user) return next(new UnauthorizedError("Invalid refresh token"));
+    user.refreshToken = null; // Invalidate the refresh token
+    await user.save();
+    logger.info(`User ${user.username} logged out successfully`);
+    res.send({ message: "Logged out successfully" });
   } catch (error) {
     next(error);
   }
