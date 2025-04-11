@@ -76,7 +76,7 @@ router.post(
         return next(new UnauthorizedError("Invalid credentials"));
       }
       const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "10s",
+        expiresIn: "1h",
       });
       const refreshToken = crypto.randomBytes(32).toString("hex");
       user.refreshToken = refreshToken;

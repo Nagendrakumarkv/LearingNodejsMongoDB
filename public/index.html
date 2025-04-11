@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Real-Time Messages</title>
+  </head>
+  <body>
+    <h1>Live Messages</h1>
+    <ul id="messages"></ul>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      // Replace with a valid token from login or refresh
+      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ZWRmNzBlYjFhYTE2OGI4NThiYjVkYSIsImlhdCI6MTc0NDI1NjM2OCwiZXhwIjoxNzQ0MjU5OTY4fQ.ZYWZAB63uc31_XLIclUjWaB6LRXTBAzHx_gpp6MoJ_g"; // e.g., from /users/login
+      const socket = io("http://localhost:3000", { auth: { token } });
+
+      const messagesList = document.getElementById("messages");
+
+      socket.on("connect", () => {
+        console.log("Connected:", socket.id);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("Connection error:", err.message);
+      });
+
+      socket.on("newMessage", (message) => {
+        const li = document.createElement("li");
+        li.textContent = `[${new Date(
+          message.createdAt
+        ).toLocaleTimeString()}] User ${message.userId}: ${message.text}`;
+        messagesList.appendChild(li);
+      });
+    </script>
+  </body>
+</html>

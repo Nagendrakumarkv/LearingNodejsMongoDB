@@ -8,6 +8,15 @@ const {
   DatabaseError,
 } = require("../errors/customErrors");
 const logger = require("../logger"); // Import logger
+const { Server } = require("socket.io"); // Import for type (optional)
+
+// Assuming io is available globally (we'll pass it in Step 5)
+let io;
+
+router.use((req, res, next) => {
+  io = req.app.get("io"); // Get io instance from app
+  next();
+});
 
 //POST a new message
 router.post(
@@ -32,6 +41,20 @@ router.post(
         throw new DatabaseError(`Failed to save message: ${err.message}`);
       });
       logger.info(`Message created by user ${req.user.id}: "${req.body.text}"`);
+      if (io) {
+        const broadcastMessage = {
+          text: message.text,
+          userId: req.user.id,
+          createdAt: message.createdAt,
+        };
+        io.emit("newMessage", broadcastMessage);
+
+        logger.info(
+          `Broadcasting new message ${req.user.id}: ${JSON.stringify(
+            broadcastMessage
+          )}`
+        );
+      }
       res.status(201).send(message);
     } catch (error) {
       next(error);
