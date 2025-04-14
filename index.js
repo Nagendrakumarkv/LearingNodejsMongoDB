@@ -24,6 +24,7 @@ app.use(logRequest); // Add logging middleware globally
 app.use(rateLimit); // Add rate limiting globally
 app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded files
 
 //JWT Middleware
 const authMiddleware = (req, res, next) => {

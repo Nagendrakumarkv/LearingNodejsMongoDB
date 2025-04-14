@@ -8,7 +8,8 @@ const {
   DatabaseError,
 } = require("../errors/customErrors");
 const logger = require("../logger"); // Import logger
-const { Server } = require("socket.io"); // Import for type (optional)
+const multer = require("multer");
+const path = require("path");
 
 // Assuming io is available globally (we'll pass it in Step 5)
 let io;
@@ -17,6 +18,35 @@ router.use((req, res, next) => {
   io = req.app.get("io"); // Get io instance from app
   next();
 });
+
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limit to 5MB
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|pdf/;
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      const error = new ValidationError("Only images and PDFs are allowed!");
+      logger.error(`Upload failed for user ${req.user?.id}: ${error.message}`);
+      return cb(error);
+    }
+  },
+}).single("file");
 
 //POST a new message
 router.post(
@@ -61,6 +91,58 @@ router.post(
     }
   }
 );
+
+//POST file upload
+router.post("/upload", (req, res, next) => {
+  upload(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      logger.error(
+        `Upload failed for user ${req.user?.id}: Multer error - ${err.message}`
+      );
+      return next(new ValidationError(`Multer error: ${err.message}`));
+    } else if (err) {
+      logger.error(`Upload failed for user ${req.user?.id}: ${err.message}`);
+      return next(err);
+    }
+    if (!req.file) {
+      logger.error(`Upload failed for user ${req.user?.id}: No file uploaded`);
+      return next(new ValidationError("No file uploaded"));
+    }
+    try {
+      const message = new Message({
+        text: req.body.text || `Uploaded file: ${req.file.originalname}`,
+        user: req.user.id,
+        filePath: req.file.path,
+        fileName: req.file.filename,
+      });
+      await message.save();
+      logger.info(
+        `File uploaded by user ${req.user.id}: ${req.file.originalname}`
+      );
+      if (io) {
+        const broadcastMessage = {
+          text: `File uploaded: ${req.file.originalname}`,
+          userId: req.user.id,
+          createdAt: message.createdAt,
+          filePath: `/uploads/${req.file.filename}`,
+        };
+        io.emit("newMessage", broadcastMessage);
+        logger.info(
+          `Broadcasting file upload to room ${req.user.id}: ${JSON.stringify(
+            broadcastMessage
+          )}`
+        );
+      }
+      res.status(201).send({
+        message: "File uploaded successfully",
+        filePath: `/uploads/${req.file.filename}`,
+      });
+    } catch (error) {
+      logger.error(`Upload failed for user ${req.user?.id}: ${error.message}`);
+      next(error);
+    }
+  });
+});
 
 // New Stats Route
 router.get("/stats", async (req, res, next) => {
