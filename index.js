@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const path = require("path");
+const Grid = require("gridfs-stream");
 const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -40,6 +41,14 @@ const authMiddleware = (req, res, next) => {
     next(new UnauthorizedError("Invalid token"));
   }
 };
+
+let gfs;
+mongoose.connection.once("open", () => {
+  gfs = Grid(mongoose.connection.db, mongoose.mongo);
+  gfs.collection("uploads");
+  app.set("gfs", gfs); // Set gfs after initialization
+  logger.info("GridFS initialized");
+});
 
 // Socket.io JWT Authentication
 io.use((socket, next) => {

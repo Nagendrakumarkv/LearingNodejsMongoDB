@@ -11,24 +11,16 @@ const logger = require("../logger"); // Import logger
 const multer = require("multer");
 const path = require("path");
 
-// Assuming io is available globally (we'll pass it in Step 5)
-let io;
+let io, gfs;
 
 router.use((req, res, next) => {
-  io = req.app.get("io"); // Get io instance from app
+  io = req.app.get("io");
+  gfs = req.app.get("gfs");
   next();
 });
 
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-
+// Configure Multer for GridFS
+const storage = multer.memoryStorage(); // Store file in memory for GridFS
 const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Limit to 5MB
@@ -108,39 +100,63 @@ router.post("/upload", (req, res, next) => {
       logger.error(`Upload failed for user ${req.user?.id}: No file uploaded`);
       return next(new ValidationError("No file uploaded"));
     }
+    if (!gfs) {
+      return next(new DatabaseError("GridFS not initialized"));
+    }
     try {
-      const message = new Message({
-        text: req.body.text || `Uploaded file: ${req.file.originalname}`,
-        user: req.user.id,
-        filePath: req.file.path,
-        fileName: req.file.filename,
+      const writestream = gfs.createWriteStream({
+        filename: req.file.originalname,
+        metadata: { userId: req.user.id },
       });
-      await message.save();
-      logger.info(
-        `File uploaded by user ${req.user.id}: ${req.file.originalname}`
-      );
-      if (io) {
-        const broadcastMessage = {
-          text: `File uploaded: ${req.file.originalname}`,
-          userId: req.user.id,
-          createdAt: message.createdAt,
-          filePath: `/uploads/${req.file.filename}`,
-        };
-        io.emit("newMessage", broadcastMessage);
+      writestream.write(req.file.buffer);
+      writestream.end();
+      writestream.on("close", async (file) => {
+        const message = new Message({
+          text: req.body.text || `Uploaded file: ${req.file.originalname}`,
+          user: req.user.id,
+          fileId: file._id, // Use the raw _id from GridFS
+        });
+        await message.save();
         logger.info(
-          `Broadcasting file upload to room ${req.user.id}: ${JSON.stringify(
-            broadcastMessage
-          )}`
+          `File uploaded by user ${req.user.id}: ${req.file.originalname} (GridFS ID: ${file._id})`
         );
-      }
-      res.status(201).send({
-        message: "File uploaded successfully",
-        filePath: `/uploads/${req.file.filename}`,
+        if (io) {
+          const broadcastMessage = {
+            text: `File uploaded: ${req.file.originalname}`,
+            userId: req.user.id,
+            createdAt: message.createdAt,
+            fileId: file._id,
+          };
+          io.emit("newMessage", broadcastMessage);
+          logger.info(
+            `Broadcasting file upload to room ${req.user.id}: ${JSON.stringify(
+              broadcastMessage
+            )}`
+          );
+        }
+        res
+          .status(201)
+          .send({ message: "File uploaded successfully", fileId: file._id });
       });
     } catch (error) {
       logger.error(`Upload failed for user ${req.user?.id}: ${error.message}`);
       next(error);
     }
+  });
+});
+
+// Serve files from GridFS (optional endpoint)
+router.get("/file/:id", (req, res, next) => {
+  if (!gfs) {
+    return next(new DatabaseError("GridFS not initialized"));
+  }
+  gfs.files.findOne({ _id: req.params.id }, (err, file) => {
+    if (err) return next(err);
+    if (!file) return next(new NotFoundError("File not found"));
+    const readstream = gfs.createReadStream({
+      _id: req.params.id,
+    });
+    readstream.pipe(res);
   });
 });
 
