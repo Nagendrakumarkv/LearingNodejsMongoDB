@@ -9,21 +9,21 @@ const {
 } = require("../errors/customErrors");
 const logger = require("../logger"); // Import logger
 const multer = require("multer");
+const AWS = require("aws-sdk");
 const path = require("path");
 
-let io, gfs;
+let io;
 
 router.use((req, res, next) => {
   io = req.app.get("io");
-  gfs = req.app.get("gfs");
   next();
 });
 
-// Configure Multer for GridFS
-const storage = multer.memoryStorage(); // Store file in memory for GridFS
+// Configure Multer to handle file in memory
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Limit to 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: function (req, file, cb) {
     const filetypes = /jpeg|jpg|png|pdf/;
     const extname = filetypes.test(
@@ -39,6 +39,13 @@ const upload = multer({
     }
   },
 }).single("file");
+
+// Configure AWS S3
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 
 //POST a new message
 router.post(
@@ -100,43 +107,43 @@ router.post("/upload", (req, res, next) => {
       logger.error(`Upload failed for user ${req.user?.id}: No file uploaded`);
       return next(new ValidationError("No file uploaded"));
     }
-    if (!gfs) {
-      return next(new DatabaseError("GridFS not initialized"));
-    }
     try {
-      const writestream = gfs.createWriteStream({
-        filename: req.file.originalname,
-        metadata: { userId: req.user.id },
+      const fileKey = `${Date.now()}-${req.file.originalname}`;
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: fileKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      };
+
+      const s3Upload = await s3.upload(params).promise();
+      const message = new Message({
+        text: req.body.text || `Uploaded file: ${req.file.originalname}`,
+        user: req.user.id,
+        fileKey: fileKey, // Store S3 key
+        fileUrl: s3Upload.Location, // Store public URL
       });
-      writestream.write(req.file.buffer);
-      writestream.end();
-      writestream.on("close", async (file) => {
-        const message = new Message({
-          text: req.body.text || `Uploaded file: ${req.file.originalname}`,
-          user: req.user.id,
-          fileId: file._id, // Use the raw _id from GridFS
-        });
-        await message.save();
+      await message.save();
+      logger.info(
+        `File uploaded by user ${req.user.id} to S3: ${req.file.originalname} (Key: ${fileKey})`
+      );
+      if (io) {
+        const broadcastMessage = {
+          text: `File uploaded: ${req.file.originalname}`,
+          userId: req.user.id,
+          createdAt: message.createdAt,
+          fileUrl: s3Upload.Location,
+        };
+        io.emit("newMessage", broadcastMessage);
         logger.info(
-          `File uploaded by user ${req.user.id}: ${req.file.originalname} (GridFS ID: ${file._id})`
+          `Broadcasting file upload to room ${req.user.id}: ${JSON.stringify(
+            broadcastMessage
+          )}`
         );
-        if (io) {
-          const broadcastMessage = {
-            text: `File uploaded: ${req.file.originalname}`,
-            userId: req.user.id,
-            createdAt: message.createdAt,
-            fileId: file._id,
-          };
-          io.emit("newMessage", broadcastMessage);
-          logger.info(
-            `Broadcasting file upload to room ${req.user.id}: ${JSON.stringify(
-              broadcastMessage
-            )}`
-          );
-        }
-        res
-          .status(201)
-          .send({ message: "File uploaded successfully", fileId: file._id });
+      }
+      res.status(201).send({
+        message: "File uploaded successfully",
+        fileUrl: s3Upload.Location,
       });
     } catch (error) {
       logger.error(`Upload failed for user ${req.user?.id}: ${error.message}`);

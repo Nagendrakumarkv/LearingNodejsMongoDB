@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const path = require("path");
-const Grid = require("gridfs-stream");
 const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -25,7 +24,6 @@ app.use(logRequest); // Add logging middleware globally
 app.use(rateLimit); // Add rate limiting globally
 app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serve uploaded files
 
 //JWT Middleware
 const authMiddleware = (req, res, next) => {
@@ -41,14 +39,6 @@ const authMiddleware = (req, res, next) => {
     next(new UnauthorizedError("Invalid token"));
   }
 };
-
-let gfs;
-mongoose.connection.once("open", () => {
-  gfs = Grid(mongoose.connection.db, mongoose.mongo);
-  gfs.collection("uploads");
-  app.set("gfs", gfs); // Set gfs after initialization
-  logger.info("GridFS initialized");
-});
 
 // Socket.io JWT Authentication
 io.use((socket, next) => {
