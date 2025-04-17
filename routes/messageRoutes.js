@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const redis = require("redis");
 const { body, validationResult } = require("express-validator");
 const Message = require("../models/Message");
 const {
@@ -167,9 +168,24 @@ router.get("/file/:id", (req, res, next) => {
   });
 });
 
+//Redis
+const client = redis.createClient({
+  url: "redis://localhost:6379", // Default Redis port
+});
+client.on("error", (err) => console.log("Redis Client Error", err));
+(async () => {
+  await client.connect();
+})();
+
 // New Stats Route
 router.get("/stats", async (req, res, next) => {
   try {
+    const cacheKey = "stats:24h";
+    const cached = await client.get(cacheKey);
+    if (cached) {
+      return res.send(JSON.parse(cached));
+    }
+
     const stats = await Message.aggregate([
       // Filter messages from last 24 hours
       {
@@ -206,13 +222,15 @@ router.get("/stats", async (req, res, next) => {
         },
       },
       // Sort by messageCount descending
-      // { $sort: { messageCount: -1 } },
-      // // Limit to top 1 (most active user)
-      // { $limit: 1 },
+      { $sort: { messageCount: -1 } },
+      // Limit to top 1 (most active user)
+      //{ $limit: 1 },
     ]).catch((err) => {
       throw new DatabaseError(`Failed to fetch stats: ${err.message}`);
     });
+
     if (!stats.length) throw new NotFoundError("No stats available");
+    await client.setEx(cacheKey, 3600, JSON.stringify(stats)); // Cache for 1 hour
     res.send(stats);
   } catch (error) {
     next(error);
