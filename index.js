@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const path = require("path");
+const cors = require("cors");
 const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -24,6 +25,15 @@ app.use(logRequest); // Add logging middleware globally
 app.use(rateLimit); // Add rate limiting globally
 app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, "public")));
+
+// Enable CORS for localhost:4200
+app.use(
+  cors({
+    origin: "http://localhost:4200", // Allow only your Angular app
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allow these methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
+  })
+);
 
 //JWT Middleware
 const authMiddleware = (req, res, next) => {
