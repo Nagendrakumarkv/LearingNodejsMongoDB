@@ -18,7 +18,13 @@ const { Server } = require("socket.io"); // Import Socket.io
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server
-const io = new Server(server); // Initialize Socket.io
+
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:4200",
+    methods: ["GET", "POST"],
+  },
+}); // Initialize Socket.io
 
 app.use(express.json());
 app.use(logRequest); // Add logging middleware globally
@@ -49,23 +55,6 @@ const authMiddleware = (req, res, next) => {
     next(new UnauthorizedError("Invalid token"));
   }
 };
-
-// Socket.io JWT Authentication
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error("Authentication error: No token provided"));
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // Attach user to socket
-    logger.info(`Socket authenticated for user ${decoded.id}`);
-    next();
-  } catch (error) {
-    logger.error(`Socket authentication failed: ${error.message}`);
-    next(new Error("Invalid token"));
-  }
-});
 
 //Connect to MongoDB
 mongoose
@@ -106,6 +95,9 @@ io.on("connection", (socket) => {
   );
   socket.on("disconnect", () => {
     logger.info(`User disconnected: ${socket.id}`);
+  });
+  socket.on("newMessage", (message) => {
+    io.emit("messageUpdate", message); // Broadcast to all clients
   });
 });
 

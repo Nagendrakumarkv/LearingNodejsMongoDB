@@ -77,7 +77,7 @@ router.post(
           userId: req.user.id,
           createdAt: message.createdAt,
         };
-        io.emit("newMessage", broadcastMessage);
+        io.emit("messageUpdate", broadcastMessage);
 
         logger.info(
           `Broadcasting new message ${req.user.id}: ${JSON.stringify(
