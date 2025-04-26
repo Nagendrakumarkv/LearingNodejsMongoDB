@@ -21,7 +21,7 @@ const server = http.createServer(app); // Create HTTP server
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:4200",
+    origin: process.env.FRONTEND_URL || "http://localhost:4200",
     methods: ["GET", "POST"],
   },
 }); // Initialize Socket.io
@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // Enable CORS for localhost:4200
 app.use(
   cors({
-    origin: "http://localhost:4200", // Allow only your Angular app
+    origin: process.env.FRONTEND_URL || "http://localhost:4200", // Allow only your Angular app
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allow these methods
     allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
   })
