@@ -50,7 +50,8 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
-    res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}`);
+    //res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}`);
+    res.redirect(`https://angular19withnodejsintegration.onrender.com/login?token=${token}`);
   }
 );
 
