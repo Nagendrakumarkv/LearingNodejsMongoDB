@@ -11,7 +11,9 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:3000/auth/google/callback",
+      callbackURL: `${
+        process.env.BACKEND_URL || "http://localhost:3000"
+      }/auth/google/callback`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -25,7 +27,7 @@ passport.use(
         );
         done(null, user);
       } catch (error) {
-        done(error);
+        done(error, null);
       }
     }
   )
@@ -48,7 +50,7 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
-    res.redirect(`/?token=${token}`);
+    res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}`);
   }
 );
 
