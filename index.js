@@ -15,6 +15,7 @@ const restrictWeekends = require("./middleware/restrictWeekends");
 const logger = require("./logger");
 const { NotFoundError, UnauthorizedError } = require("./errors/customErrors");
 const { Server } = require("socket.io"); // Import Socket.io
+const helmet = require("helmet");
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server
@@ -40,6 +41,9 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
   })
 );
+
+//Add helmet for security headers
+app.use(helmet());
 
 //JWT Middleware
 const authMiddleware = (req, res, next) => {

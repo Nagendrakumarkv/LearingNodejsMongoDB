@@ -10,6 +10,7 @@ const {
   UnauthorizedError,
 } = require("../errors/customErrors");
 const logger = require("../logger"); // Import logger
+const { sendEmail } = require("../utils/email");
 
 //Register a new user
 router.post(
@@ -34,11 +35,11 @@ router.post(
       );
     }
     try {
-      const { username, password } = req.body;
+      const { username, password, email } = req.body;
       if (!username || !password) {
         return res.status(400).send("Username and password required");
       }
-      const user = new User({ username, password });
+      const user = new User({ username, password, email });
       await user.save();
       res.status(201).send("User registered");
     } catch (error) {
@@ -81,6 +82,14 @@ router.post(
       const refreshToken = crypto.randomBytes(32).toString("hex");
       user.refreshToken = refreshToken;
       await user.save();
+
+      // Send welcome email
+      await sendEmail(
+        user.email,
+        "Welcome to Node.js MongoDB Learning App!",
+        `Hi ${user.username},\n\nYou have successfully logged in to the Node.js MongoDB Learning App. Enjoy real-time messaging and file sharing!\n\nBest,\nThe Team`
+      );
+
       res.send({ accessToken, refreshToken });
     } catch (error) {
       next(error);
